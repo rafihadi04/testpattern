@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Mapper LED</title>
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Style -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .main-container {
+            height: calc(100vh - 56px); /* Full height minus navbar */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .controls-container {
+            background-color: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 90%;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+
+        #canvas-container {
+            background-color: #343a40;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            position: relative;
+            overflow: hidden;
+            flex-grow: 1;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        #previewCanvas {
+            border-radius: 0.5rem;
+            touch-action: none; /* Disable default touch actions */
+            background-color: transparent;
+        }
+
+        .group-item {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .group-item.active {
+            font-weight: bold;
+            background-color: #0d6efd !important;
+            color: white;
+        }
+
+        .group-item.active .badge-pill {
+            background-color: #fff;
+            color: #0d6efd;
+        }
+        
+        /* Custom scrollbar for control panel */
+        .controls-container::-webkit-scrollbar {
+            height: 8px;
+        }
+        .controls-container::-webkit-scrollbar-track {
+            background: #e9ecef;
+            border-radius: 10px;
+        }
+        .controls-container::-webkit-scrollbar-thumb {
+            background: #adb5bd;
+            border-radius: 10px;
+        }
+        .controls-container::-webkit-scrollbar-thumb:hover {
+            background: #6c757d;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+<nav class="navbar navbar-dark bg-dark">
+    <div class="container-fluid">
+        <span class="navbar-brand mb-0 h1">Pixel Mapper LED</span>
+    </div>
+</nav>
+
+<div class="container-fluid main-container">
+    <div class="controls-container flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 w-full justify-center mt-3">
+        <!-- Composition & Test Pattern Controls -->
+        <div class="flex-none p-3 bg-gray-100 rounded-lg shadow-sm w-full md:w-auto">
+            <h5 class="font-bold text-gray-800 mb-2">Composition</h5>
+            <div class="flex flex-col space-y-2">
+                <div class="flex items-center space-x-2">
+                    <label class="w-24 text-sm font-medium">Size (px):</label>
+                    <input type="number" id="compositionWidthInput" class="form-control form-control-sm w-20" placeholder="Width" value="3456">
+                    <span class="text-sm font-medium">x</span>
+                    <input type="number" id="compositionHeightInput" class="form-control form-control-sm w-20" placeholder="Height" value="960">
+                </div>
+            </div>
+            <button id="loadCompositionBtn" class="btn btn-primary btn-sm mt-3 w-full">Load</button>
+        </div>
+
+        <!-- Group and Transform Controls -->
+        <div class="flex-none p-3 bg-gray-100 rounded-lg shadow-sm w-full md:w-auto">
+            <h5 class="font-bold text-gray-800 mb-2">Group Controls</h5>
+            <div class="flex flex-col space-y-2">
+                <div class="flex items-center space-x-2">
+                    <label class="w-24 text-sm font-medium">Name:</label>
+                    <input type="text" id="groupNameInput" class="form-control form-control-sm w-full" placeholder="Group Name">
+                </div>
+                <div class="flex items-center space-x-2">
+                    <label class="w-24 text-sm font-medium">Size (px):</label>
+                    <input type="number" id="groupWidthInput" class="form-control form-control-sm w-20" placeholder="Width">
+                    <span class="text-sm font-medium">x</span>
+                    <input type="number" id="groupHeightInput" class="form-control form-control-sm w-20" placeholder="Height">
+                </div>
+                <div class="flex items-center space-x-2">
+                    <label class="w-24 text-sm font-medium">Position (px):</label>
+                    <input type="number" id="groupXInput" class="form-control form-control-sm w-20" placeholder="X" value="0">
+                    <span class="text-sm font-medium">,</span>
+                    <input type="number" id="groupYInput" class="form-control form-control-sm w-20" placeholder="Y" value="0">
+                </div>
+                <div class="flex items-center space-x-2">
+                    <label class="w-24 text-sm font-medium">Color:</label>
+                    <input type="color" id="groupColorInput" class="form-control form-control-sm w-full" value="#ff8800">
+                </div>
+            </div>
+            <button id="addGroupBtn" class="btn btn-success btn-sm mt-3 w-full">Add Group</button>
+        </div>
+        
+        <!-- List of Groups -->
+        <div class="flex-none p-3 bg-gray-100 rounded-lg shadow-sm w-full md:w-auto">
+            <h5 class="font-bold text-gray-800 mb-2">Groups</h5>
+            <div id="groupList" class="flex flex-col space-y-1">
+                <!-- Group items will be populated here -->
+            </div>
+            <div class="flex justify-between mt-3 space-x-2">
+                <button id="removeGroupBtn" class="btn btn-danger btn-sm w-full" disabled>Remove Group</button>
+                <button id="saveGroupBtn" class="btn btn-warning btn-sm w-full" disabled>Save Changes</button>
+            </div>
+        </div>
+
+        <!-- Global Settings -->
+        <div class="flex-none p-3 bg-gray-100 rounded-lg shadow-sm w-full md:w-auto">
+            <h5 class="font-bold text-gray-800 mb-2">Global Settings</h5>
+            <div class="flex flex-col space-y-2">
+                <div class="form-check form-switch flex items-center space-x-2">
+                    <input class="form-check-input" type="checkbox" role="switch" id="snapToCenterToggle" checked>
+                    <label class="form-check-label text-sm font-medium" for="snapToCenterToggle">Snap to Center</label>
+                </div>
+                <div class="form-check form-switch flex items-center space-x-2">
+                    <input class="form-check-input" type="checkbox" role="switch" id="snapToGroupToggle" checked>
+                    <label class="form-check-label text-sm font-medium" for="snapToGroupToggle">Snap to Other Groups</label>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Export & Test Pattern -->
+        <div class="flex-none p-3 bg-gray-100 rounded-lg shadow-sm w-full md:w-auto">
+            <h5 class="font-bold text-gray-800 mb-2">Output</h5>
+            <div class="flex flex-col space-y-2">
+                <div class="flex items-center space-x-2">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" id="showTestPattern" checked>
+                        <label class="form-check-label text-sm font-medium" for="showTestPattern">Show Test Pattern</label>
+                    </div>
+                    <div class="flex items-center">
+                        <label class="text-sm font-medium ms-3">Cell Size (px):</label>
+                        <input type="number" id="testPatternCellSize" class="form-control form-control-sm w-20 ms-2" value="48">
+                    </div>
+                </div>
+                 <div class="form-check form-switch flex items-center space-x-2">
+                    <input class="form-check-input" type="checkbox" role="switch" id="showMainGuides" >
+                    <label class="form-check-label text-sm font-medium" for="showMainGuides">Show Main Guides</label>
+                </div>
+                <div class="form-check form-switch flex items-center space-x-2">
+                    <input class="form-check-input" type="checkbox" role="switch" id="showGroupGuides" checked>
+                    <label class="form-check-label text-sm font-medium" for="showGroupGuides">Show Group Guides</label>
+                </div>
+            </div>
+            <button id="exportPngBtn" class="btn btn-primary btn-sm mt-3 w-full">Export PNG</button>
+        </div>
+    </div>
+
+    <div id="canvas-container" class="rounded-lg shadow-lg w-full flex justify-center items-center">
+        <canvas id="previewCanvas"></canvas>
+        <div id="zoom-controls" class="absolute bottom-2 right-2 p-1 bg-gray-800 rounded-lg text-white text-sm flex space-x-1">
+            <button id="zoomOutBtn" class="px-2 py-1 rounded-sm hover:bg-gray-700">-</button>
+            <span id="zoomLevel" class="px-2 py-1">100%</span>
+            <button id="zoomInBtn" class="px-2 py-1 rounded-sm hover:bg-gray-700">+</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const compositionWidthInput = document.getElementById('compositionWidthInput');
+    const compositionHeightInput = document.getElementById('compositionHeightInput');
+    const loadCompositionBtn = document.getElementById('loadCompositionBtn');
+    const groupNameInput = document.getElementById('groupNameInput');
+    const groupWidthInput = document.getElementById('groupWidthInput');
+    const groupHeightInput = document.getElementById('groupHeightInput');
+    const groupXInput = document.getElementById('groupXInput');
+    const groupYInput = document.getElementById('groupYInput');
+    const groupColorInput = document.getElementById('groupColorInput');
+    const addGroupBtn = document.getElementById('addGroupBtn');
+    const saveGroupBtn = document.getElementById('saveGroupBtn');
+    const removeGroupBtn = document.getElementById('removeGroupBtn');
+    const groupList = document.getElementById('groupList');
+    const previewCanvas = document.getElementById('previewCanvas');
+    const canvasContainer = document.getElementById('canvas-container');
+    const snapToCenterToggle = document.getElementById('snapToCenterToggle');
+    const snapToGroupToggle = document.getElementById('snapToGroupToggle');
+    const showTestPattern = document.getElementById('showTestPattern');
+    const testPatternCellSizeInput = document.getElementById('testPatternCellSize');
+    const showMainGuides = document.getElementById('showMainGuides');
+    const showGroupGuides = document.getElementById('showGroupGuides');
+    const exportPngBtn = document.getElementById('exportPngBtn');
+    const zoomInBtn = document.getElementById('zoomInBtn');
+    const zoomOutBtn = document.getElementById('zoomOutBtn');
+    const zoomLevelSpan = document.getElementById('zoomLevel');
+
+    const ctx = previewCanvas.getContext('2d');
+    
+    let composition = {
+        width: 3456,
+        height: 960
+    };
+    let groups = [];
+    let selectedGroup = null;
+    let isDragging = false;
+    let dragStart = { x: 0, y: 0 };
+    let groupStart = { x: 0, y: 0 };
+    let scale = 1;
+
+    // Helper function to scale coordinates
+    function s(value) {
+        return value * scale;
+    }
+
+    // Function to calculate snapping
+    function getSnapPosition(x, y, group) {
+        const snapThreshold = 10;
+        let newX = x;
+        let newY = y;
+        
+        // Snap to Composition edges and center
+        if (snapToCenterToggle.checked) {
+            const compCenterX = composition.width / 2;
+            const compCenterY = composition.height / 2;
+            const groupCenterX = x + group.width / 2;
+            const groupCenterY = y + group.height / 2;
+
+            // Snap to horizontal center
+            if (Math.abs(groupCenterX - compCenterX) < snapThreshold) {
+                newX = compCenterX - group.width / 2;
+            }
+            // Snap to vertical center
+            if (Math.abs(groupCenterY - compCenterY) < snapThreshold) {
+                newY = compCenterY - group.height / 2;
+            }
+            
+            // Snap to composition edges
+            if (Math.abs(x - 0) < snapThreshold) newX = 0;
+            if (Math.abs(y - 0) < snapThreshold) newY = 0;
+            if (Math.abs(x + group.width - composition.width) < snapThreshold) newX = composition.width - group.width;
+            if (Math.abs(y + group.height - composition.height) < snapThreshold) newY = composition.height - group.height;
+        }
+
+        // Snap to Other Groups
+        if (snapToGroupToggle.checked) {
+            groups.forEach(g => {
+                if (g !== group) {
+                    const gEdges = {
+                        top: g.y,
+                        bottom: g.y + g.height,
+                        left: g.x,
+                        right: g.x + g.width
+                    };
+                    const groupEdges = {
+                        top: newY,
+                        bottom: newY + group.height,
+                        left: newX,
+                        right: newX + group.width
+                    };
+
+                    // Check horizontal snaps
+                    if (Math.abs(groupEdges.left - gEdges.right) < snapThreshold) newX = gEdges.right;
+                    if (Math.abs(groupEdges.right - gEdges.left) < snapThreshold) newX = gEdges.left - group.width;
+                    if (Math.abs(groupEdges.left - gEdges.left) < snapThreshold) newX = gEdges.left;
+                    if (Math.abs(groupEdges.right - gEdges.right) < snapThreshold) newX = gEdges.right - group.width;
+
+                    // Check vertical snaps
+                    if (Math.abs(groupEdges.top - gEdges.bottom) < snapThreshold) newY = gEdges.bottom;
+                    if (Math.abs(groupEdges.bottom - gEdges.top) < snapThreshold) newY = gEdges.top - group.height;
+                    if (Math.abs(groupEdges.top - gEdges.top) < snapThreshold) newY = gEdges.top;
+                    if (Math.abs(groupEdges.bottom - gEdges.bottom) < snapThreshold) newY = gEdges.bottom - group.height;
+                }
+            });
+        }
+        return { x: newX, y: newY };
+    }
+    
+    // Fungsi untuk menggambar pola tes di dalam grup
+    function drawTestPatternInGroup(targetCtx, group) {
+        const cellSize = parseInt(testPatternCellSizeInput.value) || 48;
+        for (let x = 0; x < group.width; x += cellSize) {
+            for (let y = 0; y < group.height; y += cellSize) {
+                const isEvenCell = ((x / cellSize) % 2 === 0 && (y / cellSize) % 2 === 0) || ((x / cellSize) % 2 !== 0 && (y / cellSize) % 2 !== 0);
+                let color = group.color;
+                
+                // Buat warna yang lebih terang/gelap untuk pola kotak-kotak
+                const r = parseInt(color.slice(1, 3), 16);
+                const g = parseInt(color.slice(3, 5), 16);
+                const b = parseInt(color.slice(5, 7), 16);
+                
+                const factor = isEvenCell ? 0.8 : 1.2;
+                const newR = Math.min(255, Math.max(0, Math.round(r * factor)));
+                const newG = Math.min(255, Math.max(0, Math.round(g * factor)));
+                const newB = Math.min(255, Math.max(0, Math.round(b * factor)));
+
+                targetCtx.fillStyle = `#${(1 << 24 | newR << 16 | newG << 8 | newB).toString(16).slice(1)}`;
+                targetCtx.globalAlpha = 1.0;
+                targetCtx.fillRect(group.x + x, group.y + y, cellSize, cellSize);
+            }
+        }
+    }
+
+    // Fungsi untuk menggambar semua elemen di kanvas
+    function draw() {
+        const containerRect = canvasContainer.getBoundingClientRect();
+        previewCanvas.width = containerRect.width;
+        previewCanvas.height = containerRect.height;
+
+        ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+        
+        const offsetX = (previewCanvas.width - s(composition.width)) / 2;
+        const offsetY = (previewCanvas.height - s(composition.height)) / 2;
+        ctx.save();
+        ctx.translate(offsetX, offsetY);
+        
+        // Gambar latar belakang komposisi
+        ctx.fillStyle = '#f8f9fa';
+        ctx.fillRect(0, 0, s(composition.width), s(composition.height));
+        
+        // Gambar grup
+        groups.forEach(group => {
+            // Gambar pola tes di dalam grup jika diaktifkan
+            if (showTestPattern.checked) {
+                ctx.save();
+                ctx.scale(scale, scale);
+                drawTestPatternInGroup(ctx, group);
+                ctx.restore();
+            }
+
+            const x = s(group.x);
+            const y = s(group.y);
+            const w = s(group.width);
+            const h = s(group.height);
+            
+            // Gambar batas grup
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = s(2);
+            ctx.strokeRect(x, y, w, h);
+
+            // Sorot grup yang dipilih
+            if (group === selectedGroup) {
+                ctx.strokeStyle = '#0d6efd';
+                ctx.lineWidth = s(4);
+                ctx.strokeRect(x, y, w, h);
+            }
+
+            // Gambar teks grup
+            ctx.save();
+            ctx.translate(x + w / 2, y + h / 2);
+            const fontSize = Math.max(10, s(16));
+            ctx.font = `${fontSize}px Inter, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            const nameText = group.name;
+            const sizeText = `${group.width}x${group.height}`;
+
+            const nameMetrics = ctx.measureText(nameText);
+            const sizeMetrics = ctx.measureText(sizeText);
+            const textWidth = Math.max(nameMetrics.width, sizeMetrics.width);
+            const textHeight = fontSize * 2.5;
+            const padding = s(8);
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(-textWidth/2 - padding, -textHeight/2, textWidth + padding*2, textHeight);
+
+            ctx.fillStyle = '#fff';
+            ctx.fillText(nameText, 0, -fontSize/2);
+            ctx.fillText(sizeText, 0, fontSize/2);
+
+            ctx.restore();
+        });
+
+        // Gambar panduan
+        if (showMainGuides.checked) {
+            drawMainGuides();
+        }
+        if (showGroupGuides.checked) {
+            drawGroupGuides();
+        }
+
+        ctx.restore();
+    }
+    
+    // Fungsi untuk menggambar panduan utama
+    function drawMainGuides() {
+        const compW = s(composition.width);
+        const compH = s(composition.height);
+
+        ctx.save();
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = s(1);
+        ctx.setLineDash([s(5), s(5)]);
+
+        // Garis tengah horizontal dan vertikal
+        ctx.beginPath();
+        ctx.moveTo(compW / 2, 0);
+        ctx.lineTo(compW / 2, compH);
+        ctx.moveTo(0, compH / 2);
+        ctx.lineTo(compW, compH / 2);
+        ctx.stroke();
+
+        // Garis diagonal
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(compW, compH);
+        ctx.moveTo(compW, 0);
+        ctx.lineTo(0, compH);
+        ctx.stroke();
+
+        // Lingkaran tengah
+        ctx.beginPath();
+        const circleRadius = Math.min(compW, compH) / 4;
+        ctx.arc(compW / 2, compH / 2, circleRadius, 0, 2 * Math.PI);
+        ctx.stroke();
+
+        ctx.restore();
+    }
+    
+    // Fungsi untuk menggambar panduan pada setiap grup
+    function drawGroupGuides() {
+        groups.forEach(group => {
+            const x = s(group.x);
+            const y = s(group.y);
+            const w = s(group.width);
+            const h = s(group.height);
+
+            ctx.save();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = s(1);
+            ctx.setLineDash([s(5), s(5)]);
+
+            // Garis tengah grup
+            ctx.beginPath();
+            ctx.moveTo(x + w / 2, y);
+            ctx.lineTo(x + w / 2, y + h);
+            ctx.moveTo(x, y + h / 2);
+            ctx.lineTo(x + w, y + h / 2);
+            ctx.stroke();
+            
+            // Garis diagonal grup
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + w, y + h);
+            ctx.moveTo(x + w, y);
+            ctx.lineTo(x, y + h);
+            ctx.stroke();
+
+            // Lingkaran grup
+            ctx.beginPath();
+            const groupCircleRadius = Math.min(w, h) / 4;
+            ctx.arc(x + w / 2, y + h / 2, groupCircleRadius, 0, 2 * Math.PI);
+            ctx.stroke();
+
+            ctx.restore();
+        });
+    }
+
+    // Fungsi untuk mengisi UI daftar grup
+    function populateGroupList() {
+        groupList.innerHTML = '';
+        groups.forEach((group, index) => {
+            const groupItem = document.createElement('div');
+            groupItem.className = `group-item cursor-pointer p-2 rounded-lg bg-white shadow-sm hover:bg-gray-100 flex justify-between items-center transition-colors mb-1 ${group === selectedGroup ? 'active' : ''}`;
+            groupItem.dataset.index = index;
+            groupItem.innerHTML = `
+                <span>${group.name}</span>
+                <span class="badge rounded-pill bg-secondary">${group.width}x${group.height}</span>
+            `;
+            groupItem.addEventListener('click', () => {
+                selectGroup(index);
+            });
+            groupList.appendChild(groupItem);
+        });
+        updateControls();
+    }
+
+    // Fungsi untuk memilih grup
+    function selectGroup(index) {
+        if (index === null) {
+            selectedGroup = null;
+        } else {
+            selectedGroup = groups[index];
+        }
+        
+        if (selectedGroup) {
+            groupNameInput.value = selectedGroup.name;
+            groupWidthInput.value = selectedGroup.width;
+            groupHeightInput.value = selectedGroup.height;
+            groupXInput.value = selectedGroup.x;
+            groupYInput.value = selectedGroup.y;
+            groupColorInput.value = selectedGroup.color;
+            saveGroupBtn.disabled = false;
+            removeGroupBtn.disabled = false;
+        } else {
+            groupNameInput.value = '';
+            groupWidthInput.value = '';
+            groupHeightInput.value = '';
+            groupXInput.value = '';
+            groupYInput.value = '';
+            groupColorInput.value = '#ff8800';
+            saveGroupBtn.disabled = true;
+            removeGroupBtn.disabled = true;
+        }
+        
+        populateGroupList();
+        draw();
+    }
+
+    // Fungsi untuk memperbarui panel kontrol
+    function updateControls() {
+        const groupItems = document.querySelectorAll('.group-item');
+        groupItems.forEach(item => {
+            if (selectedGroup && groups[item.dataset.index] === selectedGroup) {
+                item.classList.add('active');
+            } else {
+                item.classList.remove('active');
+            }
+        });
+    }
+
+    // Fungsi untuk menangani ekspor ke PNG
+    function exportPng() {
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = composition.width;
+        tempCanvas.height = composition.height;
+        const tempCtx = tempCanvas.getContext('2d');
+        
+        // Gambar latar belakang komposisi
+        tempCtx.fillStyle = '#f8f9fa';
+        tempCtx.fillRect(0, 0, composition.width, composition.height);
+
+        // Gambar grup dengan pola tes
+        groups.forEach(group => {
+            // Gambar pola tes di dalam grup
+            drawTestPatternInGroup(tempCtx, group);
+
+            // Gambar batas grup
+            tempCtx.strokeStyle = '#fff';
+            tempCtx.lineWidth = 2;
+            tempCtx.strokeRect(group.x, group.y, group.width, group.height);
+
+            // Gambar teks grup
+            const nameText = group.name;
+            const sizeText = `${group.width}x${group.height}`;
+            const fontSize = 16;
+            const padding = 8;
+            
+            tempCtx.font = `${fontSize}px Inter, sans-serif`;
+            tempCtx.textAlign = 'center';
+            tempCtx.textBaseline = 'middle';
+            
+            const nameMetrics = tempCtx.measureText(nameText);
+            const sizeMetrics = tempCtx.measureText(sizeText);
+            const textWidth = Math.max(nameMetrics.width, sizeMetrics.width);
+            const textHeight = fontSize * 2.5;
+
+            tempCtx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            tempCtx.fillRect(group.x + group.width/2 - textWidth/2 - padding, group.y + group.height/2 - textHeight/2, textWidth + padding*2, textHeight);
+
+            tempCtx.fillStyle = '#fff';
+            tempCtx.fillText(nameText, group.x + group.width / 2, group.y + group.height / 2 - fontSize/2);
+            tempCtx.fillText(sizeText, group.x + group.width / 2, group.y + group.height / 2 + fontSize/2);
+        });
+
+        // Gambar panduan
+        if (showMainGuides.checked) {
+            tempCtx.strokeStyle = 'white';
+            tempCtx.lineWidth = 1;
+            tempCtx.setLineDash([5, 5]);
+
+            const compW = composition.width;
+            const compH = composition.height;
+
+            // Garis tengah
+            tempCtx.beginPath();
+            tempCtx.moveTo(compW / 2, 0); tempCtx.lineTo(compW / 2, compH);
+            tempCtx.moveTo(0, compH / 2); tempCtx.lineTo(compW, compH / 2);
+            tempCtx.stroke();
+
+            // Garis diagonal
+            tempCtx.beginPath();
+            tempCtx.moveTo(0, 0); tempCtx.lineTo(compW, compH);
+            tempCtx.moveTo(compW, 0); tempCtx.lineTo(0, compH);
+            tempCtx.stroke();
+
+            // Lingkaran tengah
+            tempCtx.beginPath();
+            const circleRadius = Math.min(compW, compH) / 4;
+            tempCtx.arc(compW / 2, compH / 2, circleRadius, 0, 2 * Math.PI);
+            tempCtx.stroke();
+        }
+        
+        // Panduan grup
+        if (showGroupGuides.checked) {
+            groups.forEach(group => {
+                const x = group.x;
+                const y = group.y;
+                const w = group.width;
+                const h = group.height;
+                tempCtx.setLineDash([5, 5]);
+
+                tempCtx.beginPath();
+                tempCtx.moveTo(x + w / 2, y); tempCtx.lineTo(x + w / 2, y + h);
+                tempCtx.moveTo(x, y + h / 2); tempCtx.lineTo(x + w, y + h / 2);
+                tempCtx.stroke();
+                
+                tempCtx.beginPath();
+                tempCtx.moveTo(x, y); tempCtx.lineTo(x + w, y + h);
+                tempCtx.moveTo(x + w, y); tempCtx.lineTo(x, y + h);
+                tempCtx.stroke();
+
+                tempCtx.beginPath();
+                const groupCircleRadius = Math.min(w, h) / 4;
+                tempCtx.arc(x + w / 2, y + h / 2, groupCircleRadius, 0, 2 * Math.PI);
+                tempCtx.stroke();
+            });
+        }
+
+
+        const link = document.createElement('a');
+        link.download = 'pixel_mapper.png';
+        link.href = tempCanvas.toDataURL('image/png');
+        link.click();
+    }
+
+    // Fungsi untuk penskalaan otomatis pratinjau kanvas
+    function autoScale() {
+        const containerRect = canvasContainer.getBoundingClientRect();
+        const containerWidth = containerRect.width;
+        const containerHeight = containerRect.height;
+        
+        const scaleX = containerWidth / (composition.width + 50);
+        const scaleY = containerHeight / (composition.height + 50);
+        
+        scale = Math.min(scaleX, scaleY);
+        scale = Math.max(0.1, Math.min(2, scale));
+        
+        zoomLevelSpan.textContent = `${Math.round(scale * 100)}%`;
+        draw();
+    }
+
+    // Event listeners
+    loadCompositionBtn.addEventListener('click', () => {
+        const width = parseInt(compositionWidthInput.value);
+        const height = parseInt(compositionHeightInput.value);
+        if (width && height && width > 0 && height > 0) {
+            composition.width = width;
+            composition.height = height;
+            autoScale();
+        } else {
+            // Mengganti alert() dengan UI modal
+            const modal = document.createElement('div');
+            modal.innerHTML = `
+                <div class="modal fade" id="infoModal" tabindex="-1">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Peringatan</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                Silakan masukkan dimensi komposisi yang valid.
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            const modalInstance = new bootstrap.Modal(document.getElementById('infoModal'));
+            modalInstance.show();
+        }
+    });
+
+    addGroupBtn.addEventListener('click', () => {
+        const name = groupNameInput.value || `Group ${groups.length + 1}`;
+        const width = parseInt(groupWidthInput.value);
+        const height = parseInt(groupHeightInput.value);
+        let x = parseInt(groupXInput.value);
+        let y = parseInt(groupYInput.value);
+        const color = groupColorInput.value;
+
+        // Jika X dan Y kosong, tempatkan grup di tengah komposisi
+        if (isNaN(x) || isNaN(y)) {
+            x = (composition.width - width) / 2;
+            y = (composition.height - height) / 2;
+        }
+
+        if (width && height) {
+            const newGroup = { name, width, height, x, y, color };
+            groups.push(newGroup);
+            populateGroupList();
+            selectGroup(groups.length - 1);
+            draw();
+        } else {
+            // Mengganti alert() dengan UI modal
+            const modal = document.createElement('div');
+            modal.innerHTML = `
+                <div class="modal fade" id="infoModal" tabindex="-1">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Peringatan</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                Silakan masukkan lebar dan tinggi yang valid untuk grup.
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            const modalInstance = new bootstrap.Modal(document.getElementById('infoModal'));
+            modalInstance.show();
+        }
+    });
+
+    saveGroupBtn.addEventListener('click', () => {
+        if (selectedGroup) {
+            const name = groupNameInput.value;
+            const width = parseInt(groupWidthInput.value);
+            const height = parseInt(groupHeightInput.value);
+            const x = parseInt(groupXInput.value);
+            const y = parseInt(groupYInput.value);
+            const color = groupColorInput.value;
+            
+            if (width && height && !isNaN(x) && !isNaN(y)) {
+                selectedGroup.name = name;
+                selectedGroup.width = width;
+                selectedGroup.height = height;
+                selectedGroup.x = x;
+                selectedGroup.y = y;
+                selectedGroup.color = color;
+                
+                populateGroupList();
+                draw();
+            } else {
+                // Mengganti alert() dengan UI modal
+                const modal = document.createElement('div');
+                modal.innerHTML = `
+                    <div class="modal fade" id="infoModal" tabindex="-1">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Peringatan</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    Silakan masukkan dimensi dan posisi grup yang valid.
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                const modalInstance = new bootstrap.Modal(document.getElementById('infoModal'));
+                modalInstance.show();
+            }
+        }
+    });
+
+    removeGroupBtn.addEventListener('click', () => {
+        if (selectedGroup) {
+            const index = groups.indexOf(selectedGroup);
+            if (index > -1) {
+                groups.splice(index, 1);
+                selectGroup(null);
+                populateGroupList();
+                draw();
+            }
+        }
+    });
+
+    // Handle events for dragging on canvas
+    previewCanvas.addEventListener('mousedown', (e) => {
+        const rect = previewCanvas.getBoundingClientRect();
+        const offsetX = (previewCanvas.width - s(composition.width)) / 2;
+        const offsetY = (previewCanvas.height - s(composition.height)) / 2;
+        const mouseX = (e.clientX - rect.left - offsetX) / scale;
+        const mouseY = (e.clientY - rect.top - offsetY) / scale;
+
+        let foundGroup = null;
+        let foundIndex = null;
+        for (let i = groups.length - 1; i >= 0; i--) {
+            const group = groups[i];
+            if (mouseX >= group.x && mouseX <= group.x + group.width &&
+                mouseY >= group.y && mouseY <= group.y + group.height) {
+                foundGroup = group;
+                foundIndex = i;
+                break;
+            }
+        }
+        
+        if (foundGroup) {
+            selectGroup(foundIndex); // Perbaikan: memanggil selectGroup() dengan index
+            isDragging = true;
+            dragStart = { x: e.clientX, y: e.clientY };
+            groupStart = { x: selectedGroup.x, y: selectedGroup.y };
+            draw();
+        } else {
+            selectGroup(null);
+        }
+    });
+
+    previewCanvas.addEventListener('mousemove', (e) => {
+        if (isDragging && selectedGroup) {
+            const deltaX = (e.clientX - dragStart.x) / scale;
+            const deltaY = (e.clientY - dragStart.y) / scale;
+
+            const newX = groupStart.x + deltaX;
+            const newY = groupStart.y + deltaY;
+            
+            const snapPos = getSnapPosition(newX, newY, selectedGroup);
+
+            selectedGroup.x = snapPos.x;
+            selectedGroup.y = snapPos.y;
+
+            groupXInput.value = Math.round(selectedGroup.x);
+            groupYInput.value = Math.round(selectedGroup.y);
+            
+            draw();
+        }
+    });
+
+    previewCanvas.addEventListener('mouseup', () => {
+        isDragging = false;
+        if (selectedGroup) {
+            selectedGroup.x = Math.round(selectedGroup.x);
+            selectedGroup.y = Math.round(selectedGroup.y);
+            groupXInput.value = selectedGroup.x;
+            groupYInput.value = selectedGroup.y;
+            draw();
+        }
+    });
+
+    // Touch events for mobile
+    previewCanvas.addEventListener('touchstart', (e) => {
+        const touch = e.touches[0];
+        const rect = previewCanvas.getBoundingClientRect();
+        const offsetX = (previewCanvas.width - s(composition.width)) / 2;
+        const offsetY = (previewCanvas.height - s(composition.height)) / 2;
+        const mouseX = (touch.clientX - rect.left - offsetX) / scale;
+        const mouseY = (touch.clientY - rect.top - offsetY) / scale;
+
+        let foundGroup = null;
+        let foundIndex = null;
+        for (let i = groups.length - 1; i >= 0; i--) {
+            const group = groups[i];
+            if (mouseX >= group.x && mouseX <= group.x + group.width &&
+                mouseY >= group.y && mouseY <= group.y + group.height) {
+                foundGroup = group;
+                foundIndex = i;
+                break;
+            }
+        }
+        
+        if (foundGroup) {
+            selectGroup(foundIndex); // Perbaikan: memanggil selectGroup() dengan index
+            isDragging = true;
+            dragStart = { x: touch.clientX, y: touch.clientY };
+            groupStart = { x: selectedGroup.x, y: selectedGroup.y };
+            draw();
+            e.preventDefault(); // Mencegah gulir
+        } else {
+            selectGroup(null);
+        }
+    });
+
+    previewCanvas.addEventListener('touchmove', (e) => {
+        if (isDragging && selectedGroup) {
+            const touch = e.touches[0];
+            const deltaX = (touch.clientX - dragStart.x) / scale;
+            const deltaY = (touch.clientY - dragStart.y) / scale;
+
+            const newX = groupStart.x + deltaX;
+            const newY = groupStart.y + deltaY;
+            
+            const snapPos = getSnapPosition(newX, newY, selectedGroup);
+
+            selectedGroup.x = snapPos.x;
+            selectedGroup.y = snapPos.y;
+
+            groupXInput.value = Math.round(selectedGroup.x);
+            groupYInput.value = Math.round(selectedGroup.y);
+            
+            draw();
+            e.preventDefault(); // Mencegah gulir
+        }
+    });
+
+    previewCanvas.addEventListener('touchend', () => {
+        isDragging = false;
+        if (selectedGroup) {
+            selectedGroup.x = Math.round(selectedGroup.x);
+            selectedGroup.y = Math.round(selectedGroup.y);
+            groupXInput.value = selectedGroup.x;
+            groupYInput.value = selectedGroup.y;
+            draw();
+        }
+    });
+
+    exportPngBtn.addEventListener('click', exportPng);
+    
+    // Kontrol zoom
+    zoomInBtn.addEventListener('click', () => {
+        scale += 0.1;
+        zoomLevelSpan.textContent = `${Math.round(scale * 100)}%`;
+        draw();
+    });
+
+    zoomOutBtn.addEventListener('click', () => {
+        scale = Math.max(0.1, scale - 0.1);
+        zoomLevelSpan.textContent = `${Math.round(scale * 100)}%`;
+        draw();
+    });
+
+    // Menggambar ulang saat input berubah
+    groupNameInput.addEventListener('input', () => { if(selectedGroup) selectedGroup.name = groupNameInput.value; draw(); });
+    groupWidthInput.addEventListener('input', () => { if(selectedGroup) selectedGroup.width = parseInt(groupWidthInput.value) || 0; draw(); });
+    groupHeightInput.addEventListener('input', () => { if(selectedGroup) selectedGroup.height = parseInt(groupHeightInput.value) || 0; draw(); });
+    groupXInput.addEventListener('input', () => { if(selectedGroup) selectedGroup.x = parseInt(groupXInput.value) || 0; draw(); });
+    groupYInput.addEventListener('input', () => { if(selectedGroup) selectedGroup.y = parseInt(groupYInput.value) || 0; draw(); });
+    groupColorInput.addEventListener('input', () => { if(selectedGroup) selectedGroup.color = groupColorInput.value; draw(); });
+    testPatternCellSizeInput.addEventListener('input', draw);
+    
+    // Checkbox listeners
+    showTestPattern.addEventListener('change', draw);
+    showMainGuides.addEventListener('change', draw);
+    showGroupGuides.addEventListener('change', draw);
+    snapToCenterToggle.addEventListener('change', draw);
+    snapToGroupToggle.addEventListener('change', draw);
+
+    // Setup awal
+    window.addEventListener('resize', autoScale);
+    
+    function initialSetup() {
+        // Tambahkan grup default
+        groups.push({ name: 'L', width: 384, height: 960, x: 0, y: 0, color: '#CC6666' });
+        groups.push({ name: 'CTR', width: 2688, height: 960, x: 384, y: 0, color: '#CC66CC' });
+        groups.push({ name: 'R', width: 384, height: 960, x: 3072, y: 0, color: '#6699CC' });
+        
+        populateGroupList();
+        autoScale();
+    }
+    
+    window.onload = initialSetup;
+</script>
+
+</body>
+</html>
