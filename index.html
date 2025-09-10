@@ -4,12 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pixel Mapper LED</title>
-    <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Style -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
@@ -20,10 +17,8 @@
         }
 
         .main-container {
-            height: calc(100vh - 56px); /* Full height minus navbar */
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            /* Mengubah height menjadi min-height agar fleksibel */
+            min-height: calc(100vh - 56px); 
         }
 
         .controls-container {
@@ -32,8 +27,7 @@
             border-radius: 0.5rem;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             max-width: 90%;
-            overflow-x: auto;
-            white-space: nowrap;
+            /* Menghapus overflow-x dan white-space, akan diatur oleh Tailwind */
         }
 
         #canvas-container {
@@ -42,7 +36,7 @@
             margin-top: 1rem;
             position: relative;
             overflow: hidden;
-            flex-grow: 1;
+            flex-grow: 1; /* Memastikan canvas mengisi ruang tersedia */
             width: 100%;
             max-width: 100%;
         }
@@ -69,7 +63,7 @@
             color: #0d6efd;
         }
         
-        /* Custom scrollbar for control panel */
+        /* Custom scrollbar untuk panel kontrol di desktop */
         .controls-container::-webkit-scrollbar {
             height: 8px;
         }
@@ -94,9 +88,8 @@
     </div>
 </nav>
 
-<div class="container-fluid main-container">
-    <div class="controls-container flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 w-full justify-center mt-3">
-        <!-- Composition & Test Pattern Controls -->
+<div class="container-fluid main-container flex flex-col items-center">
+    <div class="controls-container flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 w-full justify-center mt-3 md:overflow-x-auto md:whitespace-nowrap">
         <div class="flex-none p-3 bg-gray-100 rounded-lg shadow-sm w-full md:w-auto">
             <h5 class="font-bold text-gray-800 mb-2">Composition</h5>
             <div class="flex flex-col space-y-2">
@@ -110,7 +103,6 @@
             <button id="loadCompositionBtn" class="btn btn-primary btn-sm mt-3 w-full">Load</button>
         </div>
 
-        <!-- Group and Transform Controls -->
         <div class="flex-none p-3 bg-gray-100 rounded-lg shadow-sm w-full md:w-auto">
             <h5 class="font-bold text-gray-800 mb-2">Group Controls</h5>
             <div class="flex flex-col space-y-2">
@@ -138,19 +130,16 @@
             <button id="addGroupBtn" class="btn btn-success btn-sm mt-3 w-full">Add Group</button>
         </div>
         
-        <!-- List of Groups -->
         <div class="flex-none p-3 bg-gray-100 rounded-lg shadow-sm w-full md:w-auto">
             <h5 class="font-bold text-gray-800 mb-2">Groups</h5>
             <div id="groupList" class="flex flex-col space-y-1">
-                <!-- Group items will be populated here -->
-            </div>
+                </div>
             <div class="flex justify-between mt-3 space-x-2">
                 <button id="removeGroupBtn" class="btn btn-danger btn-sm w-full" disabled>Remove Group</button>
                 <button id="saveGroupBtn" class="btn btn-warning btn-sm w-full" disabled>Save Changes</button>
             </div>
         </div>
 
-        <!-- Global Settings -->
         <div class="flex-none p-3 bg-gray-100 rounded-lg shadow-sm w-full md:w-auto">
             <h5 class="font-bold text-gray-800 mb-2">Global Settings</h5>
             <div class="flex flex-col space-y-2">
@@ -165,7 +154,6 @@
             </div>
         </div>
         
-        <!-- Export & Test Pattern -->
         <div class="flex-none p-3 bg-gray-100 rounded-lg shadow-sm w-full md:w-auto">
             <h5 class="font-bold text-gray-800 mb-2">Output</h5>
             <div class="flex flex-col space-y-2">
